@@ -15,39 +15,49 @@ const network = "sepolia";
 
 // Construct RPC URL
 const getRpcUrl = () => {
-  if (process.env.NODE_ENV === "production") {
-    return `https://${network}.infura.io/v3/${infuraApiKey}`;
+  // Always use Infura URL since we're not running a local node
+  return `https://${network}.infura.io/v3/${infuraApiKey}`;
+};
+
+// Initialize provider with proper error handling
+const getProvider = () => {
+  const url = getRpcUrl();
+  if (!infuraApiKey) {
+    throw new Error("INFURA_API_KEY not found in environment variables");
   }
-  return "http://localhost:8545"; // Local development
+  console.log(`Connecting to network: ${network}`);
+  return new ethers.JsonRpcProvider(url);
 };
 
 // Initialize provider
-const provider = new ethers.JsonRpcProvider(getRpcUrl());
+const provider = getProvider();
+
+// Initialize wallet with error checking
+const getWallet = () => {
+  if (!privateKey) {
+    throw new Error("PRIVATE_KEY not found in environment variables");
+  }
+  return new ethers.Wallet(privateKey, provider);
+};
 
 // Initialize wallet
-const wallet = new ethers.Wallet(privateKey, provider);
+const wallet = getWallet();
 
 // Initialize contract
 let healthDataContract;
 
-/**
- * Initialize the contract with the deployed address
- * @param {string} contractAddress - The deployed contract address
- */
 function initializeContract(contractAddress) {
+  if (!contractAddress) {
+    throw new Error("Contract address is required");
+  }
   healthDataContract = new ethers.Contract(
     contractAddress,
     healthDataABI,
     wallet
   );
+  return healthDataContract;
 }
 
-/**
- * Helper function to handle contract method calls with error handling
- * @param {Function} contractMethod - The contract method to call
- * @param {Array} args - Arguments to pass to the contract method
- * @returns {Promise<any>} - Returns the result of the contract call or logs an error
- */
 async function callContractMethod(contractMethod, ...args) {
   try {
     const result = await contractMethod(...args);

@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 contract HealthDataMonetization {
     struct HealthData {
-        string dataHash; // IPFS hash or other identifier of the actual data
-        address owner; // Address of the data owner
-        bool isAvailable; // Whether the data is available for purchase
-        uint256 price; // Price in wei
-        mapping(address => bool) hasAccess; // Track who has access
+        string dataHash;
+        address owner;
+        bool isAvailable;
+        uint256 price;
+        mapping(address => bool) hasAccess;
     }
 
     // Mapping from data ID to HealthData

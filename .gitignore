@@ -1,3 +1,50 @@
+# Contracts & Artifacts
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Private keys and environment variables
 .env
-node_modules
-package-lock.json
+.env.local
+.env.development
+.env.production
+keys.json
+mnemonic.txt
+private-keys.txt
+
+# Contract build info
+coverage/
+coverage.json
+
+# Hardhat files
+hardhat.config.js.timestamp-*
+.hardhat/
+
+# Development networks
+deployments/localhost/
+deployments/hardhat/
+
+# Node modules
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Deployment files
+deployment-info.json
+**/deployments/*
+!**/deployments/example/
+
+# Keep examples
+!deployment-info.example.json
