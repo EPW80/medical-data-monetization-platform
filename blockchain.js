@@ -15,7 +15,7 @@ const network = "sepolia";
 
 // Construct RPC URL
 const getRpcUrl = () => {
-  // Always use Infura URL since we're not running a local node
+  // Return the RPC URL based on the network
   return `https://${network}.infura.io/v3/${infuraApiKey}`;
 };
 

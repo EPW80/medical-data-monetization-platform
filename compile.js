@@ -3,7 +3,7 @@ const fs = require("fs");
 const solc = require("solc");
 
 function compileSolidity() {
-  // Read the source code
+  // Read the Solidity source code from the file
   const sourceCode = fs.readFileSync(
     "./contracts/HealthDataMonetization.sol",
     "utf8"
