@@ -1,10 +1,11 @@
-// blockchain.js
+// src/blockchain/blockchain.js
 
 const { ethers } = require("ethers");
-require("dotenv").config();
+require("dotenv").config({ path: "../../.env" });
 
-// Import the contract ABI
-const healthDataABI = require("./contracts/HealthDataMonetization.json").abi;
+// Import the contract ABI with correct path
+const healthDataABI =
+  require("../../contracts/HealthDataMonetization.json").abi;
 
 // Environment variables
 const infuraApiKey = process.env.INFURA_API_KEY;
@@ -74,4 +75,5 @@ module.exports = {
   initializeContract,
   callContractMethod,
   getRpcUrl,
+  healthDataContract,
 };

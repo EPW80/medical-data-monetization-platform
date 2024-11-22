@@ -1,9 +1,17 @@
-// index.js
+// src/index.js
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const { ethers } = require("ethers");
-const { provider, wallet, initializeContract } = require("./blockchain");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+
+const {
+  provider,
+  wallet,
+  initializeContract,
+  healthDataContract,
+} = require("./blockchain/blockchain");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -11,12 +19,10 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Initialize contract
+// Initialize contract with deployed address
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-let healthDataContract;
-
 if (CONTRACT_ADDRESS) {
-  healthDataContract = initializeContract(CONTRACT_ADDRESS);
+  initializeContract(CONTRACT_ADDRESS);
   console.log("Contract initialized at:", CONTRACT_ADDRESS);
 } else {
   console.warn("Warning: CONTRACT_ADDRESS not set in environment variables");
@@ -26,7 +32,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Health Data Monetization Backend");
 });
 
-// Submit health data
+// Route to submit health data
 app.post("/submit-data", async (req, res) => {
   try {
     const { healthData, consent } = req.body;
@@ -38,12 +44,18 @@ app.post("/submit-data", async (req, res) => {
       });
     }
 
+    // Get wallet balance
     const balance = await provider.getBalance(wallet.address);
+
+    // Create data hash
     const dataHash = ethers.keccak256(
       ethers.toUtf8Bytes(JSON.stringify(healthData))
     );
+
+    // Set default price (0.01 ETH)
     const priceInWei = ethers.parseEther("0.01");
 
+    // If contract is initialized
     if (healthDataContract) {
       try {
         const tx = await healthDataContract.registerHealthData(
@@ -67,40 +79,17 @@ app.post("/submit-data", async (req, res) => {
         });
       }
     } else {
-      res.status(500).json({
-        error: "Contract not initialized",
-        details: "Make sure CONTRACT_ADDRESS is set in .env",
+      res.json({
+        message: "Data submitted (contract not initialized)",
+        walletAddress: wallet.address,
+        balance: ethers.formatEther(balance),
+        dataHash: dataHash,
       });
     }
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({
       error: "Server error",
-      details: error.message,
-    });
-  }
-});
-
-// Get health data details
-app.get("/health-data/:id", async (req, res) => {
-  try {
-    if (!healthDataContract) {
-      return res.status(500).json({ error: "Contract not initialized" });
-    }
-
-    const { id } = req.params;
-    const data = await healthDataContract.getDataDetails(id);
-
-    res.json({
-      dataHash: data.dataHash,
-      owner: data.owner,
-      isAvailable: data.isAvailable,
-      price: ethers.formatEther(data.price),
-    });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({
-      error: "Error retrieving data",
       details: error.message,
     });
   }
@@ -126,70 +115,26 @@ app.get("/wallet-info", async (req, res) => {
   }
 });
 
-// Purchase access to health data
-app.post("/purchase-access/:id", async (req, res) => {
+// Get health data details
+app.get("/health-data/:id", async (req, res) => {
   try {
     if (!healthDataContract) {
       return res.status(500).json({ error: "Contract not initialized" });
     }
 
     const { id } = req.params;
-
-    // Get data details to check price
     const data = await healthDataContract.getDataDetails(id);
 
-    try {
-      // Purchase access with the required price
-      const tx = await healthDataContract.purchaseAccess(id, {
-        value: data.price,
-      });
-
-      const receipt = await tx.wait();
-
-      res.json({
-        message: "Access purchased successfully",
-        transactionHash: receipt.hash,
-        dataId: id,
-        price: ethers.formatEther(data.price),
-      });
-    } catch (contractError) {
-      console.error("Purchase error:", contractError);
-      res.status(500).json({
-        error: "Purchase failed",
-        details: contractError.message,
-      });
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({
-      error: "Error processing purchase",
-      details: error.message,
-    });
-  }
-});
-
-// Check access
-app.get("/check-access/:id", async (req, res) => {
-  try {
-    if (!healthDataContract) {
-      return res.status(500).json({ error: "Contract not initialized" });
-    }
-
-    const { id } = req.params;
-    // Get wallet address
-    const address = wallet.address;
-
-    const hasAccess = await healthDataContract.hasAccess(id, address);
-
     res.json({
-      dataId: id,
-      address: address,
-      hasAccess: hasAccess,
+      dataHash: data.dataHash,
+      owner: data.owner,
+      isAvailable: data.isAvailable,
+      price: ethers.formatEther(data.price),
     });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({
-      error: "Error checking access",
+      error: "Error retrieving data",
       details: error.message,
     });
   }
