@@ -1,6 +1,7 @@
-// database/index.js
+// database.js
 const mongoose = require("mongoose");
 
+// Define schema
 const healthDataSchema = new mongoose.Schema({
   dataHash: {
     type: String,

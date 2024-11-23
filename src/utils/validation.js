@@ -1,4 +1,4 @@
-// validation/healthData.js
+// validation.js
 const Joi = require("joi");
 
 const healthDataSchema = Joi.object({

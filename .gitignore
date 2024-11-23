@@ -48,3 +48,7 @@ deployment-info.json
 
 # Keep examples
 !deployment-info.example.json
+
+# Ignore 
+data/
+config/
