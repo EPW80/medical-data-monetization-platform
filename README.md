@@ -3,160 +3,170 @@
 A blockchain-powered platform that revolutionizes health data sharing by enabling secure, transparent, and profitable exchange between data providers and researchers. Built on Ethereum smart contracts, our platform ensures data privacy, maintains regulatory compliance, and creates a seamless marketplace for valuable health datasets.
 
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Ethereum-purple.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D%2014.0.0-green.svg)
+![Platform](https://img.shields.io/badge/platform-Ethereum--Sepolia-purple.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D%2018.0.0-green.svg)
 
 ## 🌟 Key Features
 
 ### For Data Providers
 
 - **Secure Data Monetization:** Monetize health datasets while maintaining complete control
-- **Smart Contract Security:** Automated access management through Ethereum smart contracts
-- **Revenue Tracking:** Real-time earnings dashboard and transaction history
-- **Access Control:** Granular control over data access permissions
+- **Smart Contract Integration:** Automated access management through Ethereum smart contracts
+- **Blockchain Security:** All transactions and access rights managed on Sepolia testnet
+- **Flexible Pricing:** Set and update prices for your health data
 
 ### For Researchers
 
-- **Data Discovery:** Browse and search through available health datasets
-- **Secure Access:** Encrypted access to purchased datasets
-- **Transparent Pricing:** Clear pricing and licensing terms
-- **Usage Analytics:** Track and manage dataset access
-
-### Platform Features
-
-- **Blockchain Integration:** Built on Ethereum for transparency and security
-- **Multiple Network Support:** Compatible with local development, Sepolia testnet, and mainnet
-- **RESTful API:** Comprehensive API for seamless integration
-- **Role-Based Access:** Distinct interfaces for providers and researchers
+- **Secure Access:** Authenticated access to health datasets
+- **Data Verification:** All data hashed and verified on-chain
+- **Transparent Pricing:** Clear pricing structure for each dataset
+- **JWT Authentication:** Secure token-based access to the platform
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
-- MetaMask or similar Web3 wallet
+- Node.js (v18 or higher)
+- npm
+- MetaMask or Ethereum wallet
 - Infura API key
+- Sepolia testnet ETH
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/health-data-monetization.git
+git clone https://github.com/yourusername/health-data-backend.git
 
 # Install dependencies
-cd health-data-monetization
+cd health-data-backend
 npm install
 
 # Configure environment
 cp .env.example .env
 # Edit .env with your credentials
-
-# Start the application
-npm start
 ```
-
-## 💻 Development
 
 ### Environment Setup
 
+Create a `.env` file with:
+
 ```env
 INFURA_API_KEY=your_infura_key
-PRIVATE_KEY=your_ethereum_wallet_private_key
+PRIVATE_KEY=your_wallet_private_key
+CONTRACT_ADDRESS=your_deployed_contract_address
+JWT_SECRET=your_jwt_secret
 NODE_ENV=development
-PORT=3000
 ```
 
 ### Smart Contract Deployment
 
 ```bash
-# Deploy to local network
-npm run deploy:local
+# Compile the contract
+node scripts/compile.js
 
-# Deploy to Sepolia testnet
-npm run deploy:sepolia
+# Deploy to Sepolia
+node scripts/deploy.js
+
+# Verify deployment
+node scripts/check-wallet.js
 ```
 
-### Testing
+### Running the Server
 
 ```bash
-# Run all tests
-npm test
+# Start the server
+node src/index.js
 
-# Run specific test suite
-npm test -- --grep "Contract Tests"
+# Seed test data (optional)
+node scripts/seedData.js
 ```
 
-## 🔗 API Reference
+## 💻 API Endpoints
 
 ### Authentication
 
 ```http
-POST /api/auth/login
-POST /api/auth/verify
+POST /api/auth/challenge    # Get authentication challenge
+POST /api/auth/verify      # Verify signature and get JWT token
 ```
 
-### Data Management
+### Health Data Management
 
 ```http
-POST /api/data/upload
-GET /api/data/list
-GET /api/data/:id
-PUT /api/data/:id/price
+POST /api/health-data/submit    # Submit new health data
+GET /api/health-data/:id        # Get health data by ID
+GET /api/health-data            # List all available health data
 ```
 
-### Transactions
+### Wallet Operations
 
 ```http
-POST /api/purchase/:dataId
-GET /api/transactions/history
+GET /api/wallet/info            # Get wallet information
 ```
 
-## 🏗️ Architecture
+### Contract Management
 
-### Technology Stack
+```http
+GET /api/contract/status        # Check contract status
+```
+
+## 🔒 Security Features
+
+- JWT-based authentication
+- Ethereum wallet signature verification
+- Smart contract access control
+- Request validation
+- Error handling and logging
+
+## 📝 Scripts
+
+- `check-wallet.js`: Verify wallet connection and balance
+- `compile.js`: Compile smart contracts
+- `deploy.js`: Deploy contracts to Sepolia
+- `seedData.js`: Generate and upload test data
+- `signMessage.js`: Helper for signing authentication messages
+
+## 🛠️ Tech Stack
 
 - **Backend:** Node.js, Express
-- **Blockchain:** Ethereum, Solidity
-- **Storage:** IPFS, MongoDB
-- **API:** REST, Web3.js
+- **Blockchain:** Ethereum (Sepolia), ethers.js
+- **Authentication:** JWT, Ethereum signatures
+- **Smart Contracts:** Solidity
+- **Development:** Infura, Sepolia testnet
 
-### Smart Contracts
+## 🔐 Smart Contract
 
-- `HealthDataMonetization.sol`: Main contract for data management
-- `AccessControl.sol`: Handles access permissions
-- `PaymentProcessor.sol`: Manages transactions
+The `HealthDataMonetization` smart contract includes:
 
-## 🔒 Security
+- Data registration
+- Access control
+- Price management
+- Ownership verification
 
-- End-to-end encryption for data transfer
-- Role-based access control
-- Smart contract auditing
-- Regular security updates
-- HIPAA compliance measures
+## 🧪 Testing
 
-## 📈 Roadmap
+```bash
+# Test authentication flow
+node scripts/testAuth.js
 
-- [ ] Layer 2 scaling solution integration
-- [ ] Advanced analytics dashboard
-- [ ] Multi-signature wallet support
-- [ ] Enhanced data visualization tools
-- [ ] Mobile app development
+# Test contract connection
+node scripts/check-wallet.js
+```
 
-## 🤝 Contributing
+## 📈 Next Steps
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [ ] Add data encryption
+- [ ] Implement data access revocation
+- [ ] Add payment processing
+- [ ] Create frontend interface
+- [ ] Add data validation rules
+- [ ] Implement rate limiting
 
 ## 📄 License
 
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
+ISC License
 
-## 🙏 Acknowledgments
+## 🤝 Contributing
 
-- [OpenZeppelin](https://openzeppelin.com/) for smart contract libraries
-- [IPFS](https://ipfs.io/) for decentralized storage
-- [Ethereum](https://ethereum.org/) community
+Contributions are welcome! Please feel free to submit a Pull Request.

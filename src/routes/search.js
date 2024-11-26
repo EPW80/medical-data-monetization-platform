@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const fs = require("fs");
 
-// Load seeded health data
+// Load seeded data
 let healthDatasets = [];
 try {
   healthDatasets = JSON.parse(
@@ -31,11 +31,11 @@ router.get("/search", async (req, res) => {
       // Value range filter
       valueRange, // 'min-max'
       hasNotes, // 'true' or 'false'
-      multipleConditions, // 'condition1, condition2, ...'
+      multipleConditions, // 'condition1, condition2, condition3'
 
       // Sorting
       sortBy, // 'price', 'date', 'age', 'value'
-      sortOrder, //   'asc' or 'desc'
+      sortOrder, // 'asc' or 'desc'
 
       // Pagination
       page = 1,

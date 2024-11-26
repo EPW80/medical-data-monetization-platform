@@ -45,7 +45,6 @@ class DatabaseHandler {
       process.exit(1);
     }
   }
-
   async storeHealthData(dataHash, encryptedData, owner, price) {
     const healthData = new HealthData({
       dataHash,

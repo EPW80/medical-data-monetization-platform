@@ -5,16 +5,18 @@ const bodyParser = require("body-parser");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
-// Import middleware and utilities
+// Import utils
 const { errorHandler } = require("./utils/errorHandler");
 const { logger } = require("./utils/logger");
+const AuthMiddleware = require("./auth/auth");
 
 // Import routes
 const searchRoutes = require("../src/routes/search");
 const healthDataRoutes = require("../src/routes/healthData");
 const walletRoutes = require("./routes/wallet");
+const authRoutes = require("./routes/auth");
 
-// Import blockchain setup
+// Import blockchain
 const {
   provider,
   wallet,
@@ -43,12 +45,15 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Health Data Monetization Backend");
 });
 
-// Routes
-app.use("/api", searchRoutes);
-app.use("/api/health-data", healthDataRoutes);
-app.use("/api/wallet", walletRoutes);
+// Public routes
+app.use("/api/auth", authRoutes); // Add auth routes before protected routes
 
-// Global error handling
+// Protected routes (require authentication)
+app.use("/api", AuthMiddleware.authenticateToken, searchRoutes);
+app.use("/api/health-data", AuthMiddleware.authenticateToken, healthDataRoutes);
+app.use("/api/wallet", AuthMiddleware.authenticateToken, walletRoutes);
+
+// Error handler
 app.use(errorHandler);
 
 // Start server
