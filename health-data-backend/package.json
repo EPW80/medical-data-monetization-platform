@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "server": "nodemon src/index.js",
+    "client": "cd ../health-data-frontend-new && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\" --kill-others --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\"",
+    "install-all": "npm install && cd ../health-data-frontend-new && npm install"
   },
   "keywords": [],
   "author": "",
@@ -16,11 +21,17 @@
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.2",
     "solc": "^0.8.28",
     "web3": "^4.15.0",
     "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "nodemon": "^3.1.7"
   }
 }
