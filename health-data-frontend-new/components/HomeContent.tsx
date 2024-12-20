@@ -1,7 +1,5 @@
-'use client';
-
 import { useAccount } from 'wagmi';
-import { HealthDataList } from '@/components/HealthDataList';
+import HealthDataList from '@/components/HealthDataList';
 import { SubmitHealthDataForm } from '@/components/SubmitHealthDataForm';
 import { useEffect, useState } from 'react';
 
@@ -26,21 +24,21 @@ export function HomeContent() {
       {!isConnected ? (
         <div className="text-center py-12">
           <h2 className="text-3xl font-bold text-gray-900">
-            Connect your wallet to access the Healthmint
+            Connect your wallet to access Healthmint
           </h2>
           <p className="mt-4 text-lg text-gray-500">
-            You need to connect your Ethereum wallet to submit and view health data
+            You need to connect your Ethereum wallet to submit and view health data.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <h2 className="text-2xl font-bold mb-6">Submit Health Data</h2>
+            <h2 className="text-2xl  text-gray-400 font-bold mb-6">Submit Health Data</h2>
             <SubmitHealthDataForm />
           </div>
           <div>
-            <h2 className="text-2xl font-bold mb-6">Your Health Data</h2>
-            <HealthDataList ownerAddress={address} />
+            <h2 className="text-2xl  text-gray-400 font-bold mb-6">Your Health Data</h2>
+            <HealthDataList ownerAddress={address || ''} />
           </div>
         </div>
       )}

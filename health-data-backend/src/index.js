@@ -1,140 +1,84 @@
-// src/index.js
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const path = require("path");
-const helmet = require("helmet"); // Add security headers
-const rateLimit = require("express-rate-limit"); // Add rate limiting
-require("dotenv").config({ path: path.join(__dirname, "../.env") });
-
-// Import utils
-const { errorHandler } = require("./utils/errorHandler");
-const { logger } = require("./utils/logger");
-const AuthMiddleware = require("./auth/auth");
+require("dotenv").config();
 
 // Import routes
-const searchRoutes = require("./routes/search");
+const { router: authRouter, authenticateToken } = require("./routes/auth");
 const healthDataRoutes = require("./routes/healthData");
 const walletRoutes = require("./routes/wallet");
-const authRoutes = require("./routes/auth");
-
-// Import blockchain
-const {
-  provider,
-  wallet,
-  initializeContract,
-  healthDataContract,
-} = require("./blockchain/blockchain");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware
-app.use(helmet());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later",
-});
-
-// Apply rate limiting to all routes
-app.use(limiter);
-
-// CORS configuration
+// Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:3001"],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Body parser with limits
-app.use(bodyParser.json({ limit: "10kb" })); // Limit body size
-app.use(bodyParser.urlencoded({ extended: true, limit: "10kb" }));
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`);
-  next();
-});
-
-// Initialize contract
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-if (CONTRACT_ADDRESS) {
-  try {
-    initializeContract(CONTRACT_ADDRESS);
-    logger.info("Contract initialized at:", CONTRACT_ADDRESS);
-  } catch (error) {
-    logger.error("Contract initialization failed:", error);
-  }
-} else {
-  logger.warn("Warning: CONTRACT_ADDRESS not set in environment variables");
-}
-
-// Health check endpoint
+// Health check
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "healthy",
     timestamp: new Date().toISOString(),
-    blockchain: {
-      connected: !!healthDataContract,
-      network: provider?.network?.name,
+  });
+});
+
+// Home route
+app.get("/", (req, res) => {
+  res.json({
+    name: "Health Data Monetization API",
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/auth",
+      healthData: "/api/health-data",
+      wallet: "/api/wallet",
     },
   });
 });
 
-// Base route
-app.get("/", (req, res) => {
-  res.send("Welcome to the Health Data Monetization Backend");
+// Routes
+app.use("/api/auth", authRouter);
+app.use("/api/health-data", authenticateToken, healthDataRoutes);
+app.use("/api/wallet", authenticateToken, walletRoutes);
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+  });
 });
 
-// Routes
-app.use("/api/auth", authRoutes);
-
-// Protected routes middleware
-const protectedRoute = AuthMiddleware.authenticateToken;
-
-// Protected routes
-app.use("/api/search", protectedRoute, searchRoutes);
-app.use("/api/health-data", protectedRoute, healthDataRoutes);
-app.use("/api/wallet", protectedRoute, walletRoutes);
-
 // 404 handler
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     error: "Not Found",
     message: `Route ${req.originalUrl} not found`,
   });
 });
 
-// Error handler
-app.use(errorHandler);
-
 // Start server
-const server = app.listen(port, () => {
-  logger.info(`Server is running on port ${port}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("SIGTERM received. Shutting down gracefully...");
-  server.close(() => {
-    logger.info("Process terminated");
-  });
-});
-
-// Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
-  logger.error("Uncaught Exception:", error);
+  console.error("Uncaught Exception:", error);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (error) => {
-  logger.error("Unhandled Rejection:", error);
+  console.error("Unhandled Rejection:", error);
   process.exit(1);
 });
 

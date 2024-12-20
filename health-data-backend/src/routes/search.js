@@ -28,10 +28,10 @@ router.get("/search", async (req, res) => {
       gender,
       ageRange,
 
-      // Value range filter
+      // Advanced filters
       valueRange, // 'min-max'
       hasNotes, // 'true' or 'false'
-      multipleConditions, // 'condition1, condition2, condition3'
+      multipleConditions, // 'cond1, cond2, cond3'
 
       // Sorting
       sortBy, // 'price', 'date', 'age', 'value'
@@ -63,7 +63,7 @@ router.get("/search", async (req, res) => {
       );
     }
 
-    // Multiple conditions
+    // Advanced filters
     if (multipleConditions) {
       const conditions = multipleConditions
         .split(",")
@@ -114,7 +114,7 @@ router.get("/search", async (req, res) => {
     if (valueRange) {
       const [minVal, maxVal] = valueRange.split("-").map(Number);
       results = results.filter((item) => {
-        const value = parseFloat(item.data.value.split("/")[0]); // For blood pressure, takes systolic
+        const value = parseFloat(item.data.value.split("/")[0]); // Get numerator
         return value >= minVal && value <= maxVal;
       });
     }
@@ -185,7 +185,7 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// Get stats
+// Get health data by ID
 router.get("/stats", async (req, res) => {
   try {
     const stats = {

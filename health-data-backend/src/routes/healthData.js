@@ -2,199 +2,121 @@
 const express = require("express");
 const router = express.Router();
 const { ethers } = require("ethers");
-const { logger } = require("../../src/utils/logger");
+const { logger } = require("../utils/logger");
 const {
   healthDataContract,
   provider,
   wallet,
-  callContractMethod,
-} = require("../../src/blockchain/blockchain");
+} = require("../blockchain/blockchain");
+
+// Constants
+const VALID_HEALTH_DATA_TYPES = [
+  "blood_pressure",
+  "heart_rate",
+  "glucose_level",
+  "temperature",
+  "oxygen_saturation",
+];
+
+const DEFAULT_PRICE = "0.01"; // ETH
 
 // Validation middleware
 const validateHealthData = (req, res, next) => {
-  const { healthData, consent } = req.body;
+  try {
+    const { healthData, consent } = req.body;
 
-  if (!healthData || !consent) {
-    return res.status(400).json({
-      error: "Missing required fields",
-      details: "Both healthData and consent are required",
+    // Check required fields
+    if (!healthData || !consent) {
+      return res.status(400).json({
+        error: "Missing required fields",
+        details: "Both healthData and consent are required",
+      });
+    }
+
+    // Check consent
+    const requiredFields = ["type", "value", "timestamp", "patientId"];
+    const missingFields = requiredFields.filter((field) => !healthData[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: "Missing fields",
+        details: `Required fields missing: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // Check data type
+    if (!VALID_HEALTH_DATA_TYPES.includes(healthData.type)) {
+      return res.status(400).json({
+        error: "Invalid type",
+        details: `Type must be one of: ${VALID_HEALTH_DATA_TYPES.join(", ")}`,
+      });
+    }
+
+    next();
+  } catch (error) {
+    logger.error("Validation error:", error);
+    res.status(400).json({
+      error: "Validation failed",
+      details: error.message,
     });
   }
+};
 
-  // Validate health data structure
-  const requiredFields = ["type", "value", "timestamp", "patientId"];
-  const missingFields = requiredFields.filter((field) => !healthData[field]);
-
-  if (missingFields.length > 0) {
-    return res.status(400).json({
-      error: "Invalid health data",
-      details: `Missing required fields: ${missingFields.join(", ")}`,
+// Middleware to check contract initialization
+const checkContract = (req, res, next) => {
+  if (!healthDataContract) {
+    return res.status(503).json({
+      error: "Service Unavailable",
+      details: "Blockchain contract not initialized",
     });
   }
-
-  // Validate data types
-  const validTypes = [
-    "blood_pressure",
-    "heart_rate",
-    "glucose_level",
-    "temperature",
-    "oxygen_saturation",
-  ];
-  if (!validTypes.includes(healthData.type)) {
-    return res.status(400).json({
-      error: "Invalid health data type",
-      details: `Type must be one of: ${validTypes.join(", ")}`,
-    });
-  }
-
   next();
 };
 
-// Submit health data
-router.post("/submit", validateHealthData, async (req, res) => {
+// Route handlers
+const submitHealthData = async (req, res) => {
   try {
     const { healthData } = req.body;
 
-    // Get wallet balance
+    // Check balance
     const balance = await provider.getBalance(wallet.address);
-
-    // Create data hash
     const dataHash = ethers.keccak256(
       ethers.toUtf8Bytes(JSON.stringify(healthData))
     );
+    const priceInWei = ethers.parseEther(DEFAULT_PRICE);
 
-    // Set price (0.01 ETH)
-    const priceInWei = ethers.parseEther("0.01");
+    // Check if balance is sufficient
+    const tx = await healthDataContract.registerHealthData(
+      dataHash,
+      priceInWei
+    );
+    logger.info("Transaction submitted:", tx.hash);
 
-    if (healthDataContract) {
-      try {
-        // Check if we have enough balance for gas
-        const gasPrice = await provider.getFeeData();
-        const estimatedGas =
-          await healthDataContract.registerHealthData.estimateGas(
-            dataHash,
-            priceInWei
-          );
+    const receipt = await tx.wait();
+    const event = receipt.logs.find(
+      (log) => log.eventName === "DataRegistered"
+    );
 
-        const gasCost = gasPrice.gasPrice * estimatedGas;
-        if (balance < gasCost) {
-          return res.status(400).json({
-            error: "Insufficient balance",
-            details: `Need at least ${ethers.formatEther(gasCost)} ETH for gas`,
-          });
-        }
-
-        // Register data
-        const tx = await healthDataContract.registerHealthData(
-          dataHash,
-          priceInWei
-        );
-
-        logger.info("Transaction sent:", tx.hash);
-
-        const receipt = await tx.wait();
-
-        // Get registration event
-        const event = receipt.logs.find(
-          (log) => log.eventName === "DataRegistered"
-        );
-
-        res.json({
-          success: true,
-          message: "Data submitted successfully",
-          walletAddress: wallet.address,
-          balance: ethers.formatEther(balance),
-          dataHash: dataHash,
-          transactionHash: receipt.hash,
-          dataId: event ? event.args.dataId.toString() : null,
-          gasUsed: receipt.gasUsed.toString(),
-          gasPrice: ethers.formatEther(gasPrice.gasPrice),
-        });
-      } catch (contractError) {
-        logger.error("Contract interaction error:", contractError);
-        res.status(500).json({
-          error: "Contract interaction failed",
-          details: contractError.message,
-        });
-      }
-    } else {
-      res.status(503).json({
-        error: "Service Unavailable",
-        message: "Contract not initialized",
-        walletAddress: wallet.address,
-        balance: ethers.formatEther(balance),
-        dataHash: dataHash,
-      });
-    }
+    res.json({
+      success: true,
+      dataHash,
+      transactionHash: receipt.hash,
+      dataId: event ? event.args.dataId.toString() : null,
+    });
   } catch (error) {
     logger.error("Error submitting health data:", error);
     res.status(500).json({
-      error: "Server error",
+      error: "Submission failed",
       details: error.message,
     });
   }
-});
+};
 
-// Get health data by ID
-router.get("/:id", async (req, res) => {
+const getHealthData = async (req, res) => {
   try {
-    if (!healthDataContract) {
-      return res.status(503).json({
-        error: "Service Unavailable",
-        details: "Contract not initialized",
-      });
-    }
-
-    const { id } = req.params;
-
-    // Validate ID
-    if (isNaN(id) || id < 1) {
-      return res.status(400).json({
-        error: "Invalid ID",
-        details: "ID must be a positive number",
-      });
-    }
-
-    const data = await healthDataContract.getDataDetails(id);
-
-    // Check if data exists (assuming empty dataHash means no data)
-    if (!data.dataHash) {
-      return res.status(404).json({
-        error: "Not Found",
-        details: `No health data found for ID: ${id}`,
-      });
-    }
-
-    res.json({
-      dataHash: data.dataHash,
-      owner: data.owner,
-      isAvailable: data.isAvailable,
-      price: ethers.formatEther(data.price),
-      id: id,
-    });
-  } catch (error) {
-    logger.error("Error retrieving health data:", error);
-    res.status(500).json({
-      error: "Error retrieving data",
-      details: error.message,
-    });
-  }
-});
-
-// Get all available health data
-router.get("/", async (req, res) => {
-  try {
-    if (!healthDataContract) {
-      return res.status(503).json({
-        error: "Service Unavailable",
-        details: "Contract not initialized",
-      });
-    }
-
     const nextId = await healthDataContract.nextDataId();
     const results = [];
 
-    // Fetch all available data
     for (let i = 1; i < nextId; i++) {
       try {
         const data = await healthDataContract.getDataDetails(i);
@@ -207,7 +129,7 @@ router.get("/", async (req, res) => {
           });
         }
       } catch (error) {
-        logger.error(`Error fetching data ID ${i}:`, error);
+        logger.warn(`Skipping data ID ${i}:`, error.message);
       }
     }
 
@@ -216,24 +138,52 @@ router.get("/", async (req, res) => {
       data: results,
     });
   } catch (error) {
-    logger.error("Error retrieving health data list:", error);
+    logger.error("Error fetching health data:", error);
     res.status(500).json({
-      error: "Error retrieving data list",
+      error: "Fetch failed",
       details: error.message,
     });
   }
-});
+};
 
-// Update price
-router.put("/:id/price", async (req, res) => {
+const getHealthDataById = async (req, res) => {
   try {
-    if (!healthDataContract) {
-      return res.status(503).json({
-        error: "Service Unavailable",
-        details: "Contract not initialized",
+    const { id } = req.params;
+
+    if (isNaN(id) || id < 1) {
+      return res.status(400).json({
+        error: "Invalid ID",
+        details: "ID must be a positive number",
       });
     }
 
+    const data = await healthDataContract.getDataDetails(id);
+
+    if (!data.dataHash) {
+      return res.status(404).json({
+        error: "Not found",
+        details: `No health data found for ID: ${id}`,
+      });
+    }
+
+    res.json({
+      id,
+      dataHash: data.dataHash,
+      owner: data.owner,
+      isAvailable: data.isAvailable,
+      price: ethers.formatEther(data.price),
+    });
+  } catch (error) {
+    logger.error("Error fetching health data by ID:", error);
+    res.status(500).json({
+      error: "Fetch failed",
+      details: error.message,
+    });
+  }
+};
+
+const updateHealthDataPrice = async (req, res) => {
+  try {
     const { id } = req.params;
     const { price } = req.body;
 
@@ -249,18 +199,25 @@ router.put("/:id/price", async (req, res) => {
     const receipt = await tx.wait();
 
     res.json({
-      message: "Price updated successfully",
-      id: id,
+      success: true,
+      id,
       newPrice: price,
       transactionHash: receipt.hash,
     });
   } catch (error) {
     logger.error("Error updating price:", error);
     res.status(500).json({
-      error: "Error updating price",
+      error: "Update failed",
       details: error.message,
     });
   }
-});
+};
+
+// Routes
+router.use(checkContract);
+router.get("/", getHealthData);
+router.get("/:id", getHealthDataById);
+router.post("/submit", validateHealthData, submitHealthData);
+router.put("/:id/price", updateHealthDataPrice);
 
 module.exports = router;

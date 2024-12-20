@@ -2,75 +2,68 @@
 const express = require("express");
 const router = express.Router();
 const { ethers } = require("ethers");
-const auth = require("../auth/auth");
+const jwt = require("jsonwebtoken");
 const { logger } = require("../utils/logger");
 
-// Store active nonces
-const activeNonces = new Map();
+// JWT secret key
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Generate challenge
+// Nonce store
+const nonceStore = new Map();
+
+// Generate nonce
+const generateNonce = () => {
+  return Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0");
+};
+
+// Challenge route
 router.post("/challenge", async (req, res) => {
   try {
     const { address } = req.body;
 
-    if (!address) {
-      return res.status(400).json({ error: "Wallet address is required" });
+    if (!address || !ethers.isAddress(address)) {
+      return res.status(400).json({
+        error: "Invalid address",
+      });
     }
 
-    // Generate nonce
-    const nonce = Math.floor(Math.random() * 1000000).toString();
+    const nonce = generateNonce();
+    const message = `Welcome to Health Data Platform!\n\nPlease sign this message to verify your ownership.\n\nNonce: ${nonce}`;
 
-    // Store nonce with timestamp
-    activeNonces.set(address.toLowerCase(), {
+    // Store nonce
+    nonceStore.set(address.toLowerCase(), {
       nonce,
       timestamp: Date.now(),
     });
 
-    const message = `Sign this message to authenticate with Health Data Platform\nNonce: ${nonce}`;
-
-    logger.info(`Generated challenge for ${address} with nonce: ${nonce}`);
-
-    res.json({
-      message,
-      nonce,
-    });
+    res.json({ message });
   } catch (error) {
-    logger.error("Challenge generation error:", error);
+    console.error("Challenge error:", error);
     res.status(500).json({ error: "Failed to generate challenge" });
   }
 });
 
-// Verify signature
+// Verify route
 router.post("/verify", async (req, res) => {
   try {
     const { signature, message, address } = req.body;
 
-    logger.info("Verifying signature for:", { address, message });
+    console.log("Verify request received:", { address, message, signature });
 
+    // Check all required fields
     if (!signature || !message || !address) {
       return res.status(400).json({
-        error: "Missing required fields",
+        error: "Missing parameters",
         details: "signature, message, and address are required",
       });
     }
 
-    // Extract nonce from message
-    const nonceMatch = message.match(/Nonce: (\d+)/);
-    if (!nonceMatch) {
+    // Verify address format
+    if (!ethers.isAddress(address)) {
       return res.status(400).json({
-        error: "Invalid message format",
-        details: "Message must contain 'Nonce: NUMBER'",
-      });
-    }
-
-    const messageNonce = nonceMatch[1];
-    const storedNonceData = activeNonces.get(address.toLowerCase());
-
-    // Verify nonce
-    if (!storedNonceData || storedNonceData.nonce !== messageNonce) {
-      return res.status(401).json({
-        error: "Invalid nonce",
-        details: "Nonce is invalid or expired",
+        error: "Invalid address format",
       });
     }
 
@@ -78,40 +71,56 @@ router.post("/verify", async (req, res) => {
       // Verify signature
       const recoveredAddress = ethers.verifyMessage(message, signature);
 
-      logger.info("Signature verification:", {
-        recoveredAddress,
-        originalAddress: address,
-        matches: recoveredAddress.toLowerCase() === address.toLowerCase(),
-      });
-
       if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
         return res.status(401).json({
           error: "Invalid signature",
-          details: "Recovered address doesn't match provided address",
         });
       }
 
-      // Remove used nonce
-      activeNonces.delete(address.toLowerCase());
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          address: address.toLowerCase(),
+          timestamp: Date.now(),
+        },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
 
-      // Generate token
-      const token = auth.generateToken(address);
+      // Remove nonce
+      nonceStore.delete(address.toLowerCase());
 
-      res.json({
-        token,
-        address,
-      });
-    } catch (sigError) {
-      logger.error("Signature verification failed:", sigError);
-      return res.status(401).json({
-        error: "Invalid signature",
-        details: sigError.message,
+      res.json({ token });
+    } catch (error) {
+      console.error("Signature verification error:", error);
+      res.status(401).json({
+        error: "Signature verification failed",
       });
     }
   } catch (error) {
-    logger.error("Verification error:", error);
-    res.status(500).json({ error: "Verification failed" });
+    console.error("Verification error:", error);
+    res.status(500).json({
+      error: "Server error",
+    });
   }
 });
 
-module.exports = router;
+// Middleware to authenticate token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Access denied" });
+  }
+
+  try {
+    const verified = jwt.verify(token, JWT_SECRET);
+    req.user = verified;
+    next();
+  } catch (error) {
+    res.status(403).json({ error: "Invalid token" });
+  }
+};
+
+module.exports = { router, authenticateToken };
