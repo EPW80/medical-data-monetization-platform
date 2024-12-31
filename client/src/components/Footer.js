@@ -61,7 +61,7 @@ const Footer = () => {
               color="primary"
               aria-label="github"
               component="a"
-              href="#"
+              href="https://github.com/EPW80/Healthmint/tree/main"
             >
               <GitHubIcon />
             </SocialIcon>

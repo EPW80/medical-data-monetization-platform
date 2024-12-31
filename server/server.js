@@ -14,7 +14,7 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "API is working!" });
 });
 
-// Connect to MongoDB (update with your MongoDB URI)
+// connect to MongoDB database
 mongoose
   .connect(
     process.env.MONGODB_URI || "mongodb://localhost:27017/health-marketplace"
